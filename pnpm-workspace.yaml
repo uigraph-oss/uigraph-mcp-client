@@ -1,0 +1,5 @@
+allowBuilds:
+  esbuild: true
+  keytar: true
+minimumReleaseAgeExclude:
+  - jsonc-patch@0.0.4
