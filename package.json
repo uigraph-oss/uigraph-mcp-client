@@ -2,6 +2,10 @@
   "name": "@uigraph/mcp",
   "version": "1.0.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uigraph-oss/uigraph-mcp-client.git"
+  },
   "scripts": {
     "tc": "tsc --noEmit --watch",
     "fix": "eslint . --fix",
