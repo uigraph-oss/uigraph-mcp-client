@@ -3,7 +3,6 @@ import { spawn } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { env } from './env'
 
 type AgentFormat =
   | 'json-mcp-servers'
@@ -170,22 +169,6 @@ async function ensureUigraphMcpInstalled() {
   }
 }
 
-function buildServerEnv(): Record<string, string> {
-  const serverEnv: Record<string, string> = {
-    UIGRAPH_MCP_SERVER_URL: env.UIGRAPH_MCP_SERVER_URL,
-  }
-
-  if (env.UIGRAPH_ACCESS_TOKEN?.trim()) {
-    serverEnv.UIGRAPH_ACCESS_TOKEN = env.UIGRAPH_ACCESS_TOKEN.trim()
-  }
-
-  if (env.UIGRAPH_ORG_ID?.trim()) {
-    serverEnv.UIGRAPH_ORG_ID = env.UIGRAPH_ORG_ID.trim()
-  }
-
-  return serverEnv
-}
-
 async function readJsonObject(file: string): Promise<Record<string, unknown>> {
   try {
     const existing = await readFile(file, 'utf8')
@@ -201,11 +184,7 @@ async function readJsonObject(file: string): Promise<Record<string, unknown>> {
   }
 }
 
-async function writeJsonServer(
-  file: string,
-  topKey: string,
-  serverEnv: Record<string, string>
-) {
+async function writeJsonServer(file: string, topKey: string) {
   await mkdir(path.dirname(file), { recursive: true })
 
   const parsed = await readJsonObject(file)
@@ -219,14 +198,13 @@ async function writeJsonServer(
     ...servers,
     uigraph: {
       command: 'uigraph-mcp',
-      env: serverEnv,
     },
   }
 
   await writeFile(file, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8')
 }
 
-async function writeOpencode(file: string, serverEnv: Record<string, string>) {
+async function writeOpencode(file: string) {
   await mkdir(path.dirname(file), { recursive: true })
 
   const parsed = await readJsonObject(file)
@@ -247,22 +225,17 @@ async function writeOpencode(file: string, serverEnv: Record<string, string>) {
       type: 'local',
       command: ['uigraph-mcp'],
       enabled: true,
-      environment: serverEnv,
     },
   }
 
   await writeFile(file, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8')
 }
 
-function codexBlock(serverEnv: Record<string, string>) {
-  const envEntries = Object.entries(serverEnv)
-    .map(([key, value]) => `"${key}" = "${value}"`)
-    .join(', ')
-
-  return `[mcp_servers.uigraph]\ncommand = "uigraph-mcp"\nenv = { ${envEntries} }\n`
+function codexBlock() {
+  return `[mcp_servers.uigraph]\ncommand = "uigraph-mcp"\n`
 }
 
-async function writeCodex(file: string, serverEnv: Record<string, string>) {
+async function writeCodex(file: string) {
   await mkdir(path.dirname(file), { recursive: true })
 
   let content = ''
@@ -272,7 +245,7 @@ async function writeCodex(file: string, serverEnv: Record<string, string>) {
     content = ''
   }
 
-  const block = codexBlock(serverEnv)
+  const block = codexBlock()
 
   if (content.includes('[mcp_servers.uigraph]')) {
     const replaced = content.replace(
@@ -300,24 +273,24 @@ async function promptAgent(agents: Agent[]): Promise<Agent> {
   })
 }
 
-async function applyAgent(agent: Agent, serverEnv: Record<string, string>) {
+async function applyAgent(agent: Agent) {
   if (agent.format === 'json-mcp-servers') {
-    await writeJsonServer(agent.file, 'mcpServers', serverEnv)
+    await writeJsonServer(agent.file, 'mcpServers')
     return
   }
 
   if (agent.format === 'json-servers') {
-    await writeJsonServer(agent.file, 'servers', serverEnv)
+    await writeJsonServer(agent.file, 'servers')
     return
   }
 
   if (agent.format === 'opencode') {
-    await writeOpencode(agent.file, serverEnv)
+    await writeOpencode(agent.file)
     return
   }
 
   if (agent.format === 'codex-toml') {
-    await writeCodex(agent.file, serverEnv)
+    await writeCodex(agent.file)
     return
   }
 
@@ -344,8 +317,7 @@ export async function initTool(requested?: string) {
 
   await ensureUigraphMcpInstalled()
 
-  const serverEnv = buildServerEnv()
-  await applyAgent(agent, serverEnv)
+  await applyAgent(agent)
 
   return { label: agent.label, file: agent.file }
 }
