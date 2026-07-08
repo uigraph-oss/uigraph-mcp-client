@@ -2,11 +2,36 @@ import readline from 'node:readline'
 import { getValidAccessToken, resolveDefaultOrg } from './auth'
 import { env } from './env'
 
+let clientName: string | null = null
+let clientVersion: string | null = null
+
 function parseLine(line: string) {
   try {
     return JSON.parse(line)
   } catch {
     return null
+  }
+}
+
+function captureClientInfo(req: Record<string, unknown>) {
+  if (req.method !== 'initialize') {
+    return
+  }
+  const params = req.params
+  if (typeof params !== 'object' || params === null) {
+    return
+  }
+  const info = (params as Record<string, unknown>).clientInfo
+  if (typeof info !== 'object' || info === null) {
+    return
+  }
+  const name = (info as Record<string, unknown>).name
+  const version = (info as Record<string, unknown>).version
+  if (typeof name === 'string' && name) {
+    clientName = name
+  }
+  if (typeof version === 'string' && version) {
+    clientVersion = version
   }
 }
 
@@ -42,6 +67,14 @@ async function postRequest(
 
   if (defaultOrg) {
     headers['X-UIGraph-Org-Id'] = defaultOrg
+  }
+
+  if (clientName) {
+    headers['X-UIGraph-Client-Name'] = clientName
+  }
+
+  if (clientVersion) {
+    headers['X-UIGraph-Client-Version'] = clientVersion
   }
 
   const response = await fetch(env.UIGRAPH_MCP_SERVER_URL, {
@@ -185,6 +218,8 @@ export async function runProxy() {
       )
       return
     }
+
+    captureClientInfo(req)
 
     try {
       const res = await forward(req)
