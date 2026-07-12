@@ -104,6 +104,14 @@ function getAgents(): Agent[] {
   ]
 }
 
+function serverEnv(): Record<string, string> {
+  const url = process.env.UIGRAPH_MCP_SERVER_URL
+  if (url) {
+    return { UIGRAPH_MCP_SERVER_URL: url }
+  }
+  return {}
+}
+
 function runCommand(command: string, args: string[]) {
   return new Promise<boolean>((resolve) => {
     const child = spawn(command, args, {
@@ -194,10 +202,13 @@ async function writeJsonServer(file: string, topKey: string) {
       ? (current as Record<string, unknown>)
       : {}
 
+  const env = serverEnv()
+
   parsed[topKey] = {
     ...servers,
     uigraph: {
       command: 'uigraph-mcp',
+      ...(Object.keys(env).length > 0 ? { env } : {}),
     },
   }
 
@@ -219,12 +230,15 @@ async function writeOpencode(file: string) {
       ? (current as Record<string, unknown>)
       : {}
 
+  const env = serverEnv()
+
   parsed.mcp = {
     ...mcp,
     uigraph: {
       type: 'local',
       command: ['uigraph-mcp'],
       enabled: true,
+      ...(Object.keys(env).length > 0 ? { environment: env } : {}),
     },
   }
 
@@ -232,6 +246,10 @@ async function writeOpencode(file: string) {
 }
 
 function codexBlock() {
+  const url = process.env.UIGRAPH_MCP_SERVER_URL
+  if (url) {
+    return `[mcp_servers.uigraph]\ncommand = "uigraph-mcp"\nenv = { UIGRAPH_MCP_SERVER_URL = "${url}" }\n`
+  }
   return `[mcp_servers.uigraph]\ncommand = "uigraph-mcp"\n`
 }
 
