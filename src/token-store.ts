@@ -10,7 +10,7 @@ const CONFIG_PATH = path.join(os.homedir(), '.uigraph-mcp-config.json')
 
 export type TokenBundle = {
   accessToken: string
-  kind: 'user' | 'service'
+  kind: 'user' | 'service_account'
 }
 
 export async function getStoredTokens() {
@@ -35,9 +35,15 @@ export async function getStoredTokens() {
 
     if (
       typeof parsed.accessToken !== 'string' ||
-      (parsed.kind !== 'user' && parsed.kind !== 'service')
+      (parsed.kind !== 'user' &&
+        parsed.kind !== 'service' &&
+        parsed.kind !== 'service_account')
     ) {
       return null
+    }
+
+    if (parsed.kind === 'service') {
+      return { accessToken: parsed.accessToken, kind: 'service_account' }
     }
 
     return parsed as TokenBundle

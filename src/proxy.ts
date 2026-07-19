@@ -1,5 +1,5 @@
 import readline from 'node:readline'
-import { getValidAccessToken, resolveDefaultOrg } from './auth'
+import { getCredentials, resolveMCPOrg } from './auth'
 import { getEnv } from './env'
 
 let clientName: string | null = null
@@ -35,14 +35,6 @@ function captureClientInfo(req: Record<string, unknown>) {
   }
 }
 
-async function resolveAccessToken() {
-  try {
-    return await getValidAccessToken()
-  } catch {
-    return null
-  }
-}
-
 function authError(id: unknown) {
   return {
     jsonrpc: '2.0',
@@ -56,17 +48,28 @@ function authError(id: unknown) {
 
 async function postRequest(
   req: Record<string, unknown>,
-  accessToken: string,
-  defaultOrg: string | null
+  credentials: { accessToken: string; kind: 'user' | 'service_account' },
+  orgId: string | null
 ) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json, text/event-stream',
-    Authorization: `Bearer ${accessToken}`,
   }
 
-  if (defaultOrg) {
-    headers['X-UIGraph-Org-Id'] = defaultOrg
+  if (credentials.kind === 'service_account') {
+    headers['X-API-Key'] = credentials.accessToken
+  }
+
+  if (credentials.kind === 'user') {
+    headers.Authorization = `Bearer ${credentials.accessToken}`
+  }
+
+  if (credentials.kind !== 'user' && credentials.kind !== 'service_account') {
+    throw new Error('Unsupported credential kind.')
+  }
+
+  if (orgId) {
+    headers['X-UIGraph-Org-Id'] = orgId
   }
 
   if (clientName) {
@@ -171,14 +174,14 @@ function parseResponse(
 }
 
 async function forward(req: Record<string, unknown>) {
-  const token = await resolveAccessToken()
+  const credentials = await getCredentials()
 
-  if (!token) {
+  if (!credentials) {
     return authError(req.id)
   }
 
-  const defaultOrg = await resolveDefaultOrg()
-  const res = await postRequest(req, token, defaultOrg)
+  const orgId = await resolveMCPOrg()
+  const res = await postRequest(req, credentials, orgId)
 
   if (res.status >= 500) {
     return upstreamError(req.id, res.status, 'Internal Server Error', res.text)

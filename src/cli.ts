@@ -2,10 +2,10 @@ import { Command } from '@commander-js/extra-typings'
 import chalk from 'chalk'
 import {
   authStatus,
-  getExplicitDefaultOrg,
   listOrgs,
   login,
   logout,
+  selectDefaultOrg,
   setDefaultOrgById,
 } from './auth'
 import { getEnv } from './env'
@@ -66,8 +66,7 @@ export async function runCli(argv: string[]) {
         return
       }
 
-      const explicitOrg = await getExplicitDefaultOrg()
-      const effectiveOrg = explicitOrg ?? orgs[0]?.id ?? null
+      const effectiveOrg = await selectDefaultOrg(orgs)
 
       console.log(`Logged in as ${chalk.bold(me.name)} (${me.email})`)
 
@@ -91,8 +90,7 @@ export async function runCli(argv: string[]) {
     .action(async () => {
       getEnv()
       const orgs = await listOrgs()
-      const explicitOrg = await getExplicitDefaultOrg()
-      const effectiveOrg = explicitOrg ?? orgs[0]?.id ?? null
+      const effectiveOrg = await selectDefaultOrg(orgs)
 
       if (orgs.length === 0) {
         console.log(chalk.dim('No organizations found.'))

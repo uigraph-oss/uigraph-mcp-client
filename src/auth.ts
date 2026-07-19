@@ -153,7 +153,7 @@ async function loginServiceAccount() {
     throw new Error('No token provided.')
   }
 
-  await setStoredTokens({ accessToken: token, kind: 'service' })
+  await setStoredTokens({ accessToken: token, kind: 'service_account' })
 }
 
 async function loginUserAccount() {
@@ -233,19 +233,36 @@ export async function logout() {
   await clearStoredTokens()
 }
 
-export async function getValidAccessToken() {
+type Credentials = {
+  accessToken: string
+  kind: 'user' | 'service_account'
+}
+
+export async function getCredentials() {
   const accessToken = getEnv().UIGRAPH_ACCESS_TOKEN
   if (accessToken?.trim()) {
-    return accessToken.trim()
+    return { accessToken: accessToken.trim(), kind: 'service_account' }
   }
 
   const stored = await getStoredTokens()
 
   if (stored) {
-    return stored.accessToken
+    return stored
   }
 
   return null
+}
+
+function credentialHeaders(credentials: Credentials) {
+  if (credentials.kind === 'service_account') {
+    return { 'X-API-Key': credentials.accessToken }
+  }
+
+  if (credentials.kind === 'user') {
+    return { Authorization: `Bearer ${credentials.accessToken}` }
+  }
+
+  throw new Error('Unsupported credential kind.')
 }
 
 type WhoamiMe = {
@@ -266,14 +283,14 @@ type WhoamiOrg = {
 }
 
 export async function authStatus() {
-  const token = await getValidAccessToken()
+  const credentials = await getCredentials()
 
-  if (!token) {
+  if (!credentials) {
     return { authenticated: false as const }
   }
 
   const response = await fetch(`${getEnv().UIGRAPH_MCP_SERVER_URL}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: credentialHeaders(credentials),
   })
 
   if (!response.ok) {
@@ -292,8 +309,6 @@ export async function authStatus() {
   }
 }
 
-let cachedFirstOrg: string | null | undefined
-
 export async function getExplicitDefaultOrg() {
   const stored = await getDefaultOrg()
   if (stored) {
@@ -308,29 +323,58 @@ export async function getExplicitDefaultOrg() {
   return null
 }
 
-export async function resolveDefaultOrg() {
-  const explicit = await getExplicitDefaultOrg()
-  if (explicit) {
-    return explicit
+export async function selectDefaultOrg(orgs: WhoamiOrg[]) {
+  const configuredOrgID = await getExplicitDefaultOrg()
+  if (configuredOrgID && orgs.some((org) => org.id === configuredOrgID)) {
+    return configuredOrgID
   }
 
-  if (cachedFirstOrg === undefined) {
-    try {
-      const status = await authStatus()
-
-      if (!status.authenticated) {
-        cachedFirstOrg = null
-      } else if (status.me.kind === 'service_account') {
-        cachedFirstOrg = status.me.orgId ?? null
-      } else {
-        cachedFirstOrg = status.orgs[0]?.id ?? null
-      }
-    } catch {
-      cachedFirstOrg = null
-    }
+  const firstOrg = orgs[0]
+  if (!firstOrg) {
+    return null
   }
 
-  return cachedFirstOrg
+  await setDefaultOrg(firstOrg.id)
+  return firstOrg.id
+}
+
+let cachedMCPOrg: string | null | undefined
+
+export async function resolveMCPOrg() {
+  if (cachedMCPOrg !== undefined) {
+    return cachedMCPOrg
+  }
+
+  const status = await authStatus()
+
+  if (!status.authenticated) {
+    throw new Error('Not authenticated. Run `uigraph-mcp auth login`.')
+  }
+
+  const credentials = await getCredentials()
+  if (!credentials || credentials.kind !== status.me.kind) {
+    throw new Error('Stored credential kind does not match authenticated identity.')
+  }
+
+  if (status.me.kind === 'service_account') {
+    cachedMCPOrg = null
+    return cachedMCPOrg
+  }
+
+  if (status.me.kind !== 'user') {
+    throw new Error('Unsupported authenticated identity kind.')
+  }
+
+  const orgId = await selectDefaultOrg(status.orgs)
+
+  if (!orgId) {
+    throw new Error(
+      'No organizations are available for this user account.'
+    )
+  }
+
+  cachedMCPOrg = orgId
+  return cachedMCPOrg
 }
 
 export async function listOrgs() {
