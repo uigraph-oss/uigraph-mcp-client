@@ -1,6 +1,6 @@
 import readline from 'node:readline'
 import { getValidAccessToken, resolveDefaultOrg } from './auth'
-import { env } from './env'
+import { getEnv } from './env'
 
 let clientName: string | null = null
 let clientVersion: string | null = null
@@ -77,7 +77,7 @@ async function postRequest(
     headers['X-UIGraph-Client-Version'] = clientVersion
   }
 
-  const response = await fetch(env.UIGRAPH_MCP_SERVER_URL, {
+  const response = await fetch(getEnv().UIGRAPH_MCP_SERVER_URL, {
     method: 'POST',
     headers,
     body: JSON.stringify(req),

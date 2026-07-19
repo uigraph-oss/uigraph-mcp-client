@@ -8,6 +8,7 @@ import {
   logout,
   setDefaultOrgById,
 } from './auth'
+import { getEnv } from './env'
 import { initTool } from './init'
 import { runProxy } from './proxy'
 
@@ -16,6 +17,7 @@ export async function runCli(argv: string[]) {
     .name('uigraph-mcp')
     .description('UIGraph MCP local proxy and auth CLI')
     .action(async () => {
+      getEnv()
       await runProxy()
     })
 
@@ -25,6 +27,7 @@ export async function runCli(argv: string[]) {
     .command('login')
     .description('Login as a service account or user account')
     .action(async () => {
+      getEnv()
       await login()
       console.log(chalk.green('✔ Login complete.'))
     })
@@ -41,6 +44,7 @@ export async function runCli(argv: string[]) {
     .command('status')
     .description('Show current authentication status')
     .action(async () => {
+      getEnv()
       const status = await authStatus()
 
       if (!status.authenticated) {
@@ -85,6 +89,7 @@ export async function runCli(argv: string[]) {
     .command('orgs')
     .description('List organizations you belong to')
     .action(async () => {
+      getEnv()
       const orgs = await listOrgs()
       const explicitOrg = await getExplicitDefaultOrg()
       const effectiveOrg = explicitOrg ?? orgs[0]?.id ?? null
@@ -107,6 +112,7 @@ export async function runCli(argv: string[]) {
     .argument('<org>', 'organization id or name')
     .description('Set the default org used for MCP tool calls')
     .action(async (org) => {
+      getEnv()
       const match = await setDefaultOrgById(org)
       console.log(
         `${chalk.green('✔')} Default org set to ${chalk.cyan(match.name)}.`

@@ -3,7 +3,7 @@ import { password, select } from '@inquirer/prompts'
 import { Hono } from 'hono'
 import crypto from 'node:crypto'
 import open from 'open'
-import { env } from './env'
+import { getEnv } from './env'
 import {
   clearStoredTokens,
   getDefaultOrg,
@@ -53,7 +53,7 @@ async function loginUserAccount() {
 
   const server = serve({ fetch: app.fetch, port: CALLBACK_PORT })
 
-  const loginUrl = new URL(`${env.UIGRAPH_MCP_SERVER_URL}/auth/login`)
+  const loginUrl = new URL(`${getEnv().UIGRAPH_MCP_SERVER_URL}/auth/login`)
   loginUrl.searchParams.set('redirect_uri', redirectUri)
   loginUrl.searchParams.set('state', state)
 
@@ -94,8 +94,9 @@ export async function logout() {
 }
 
 export async function getValidAccessToken() {
-  if (env.UIGRAPH_ACCESS_TOKEN?.trim()) {
-    return env.UIGRAPH_ACCESS_TOKEN.trim()
+  const accessToken = getEnv().UIGRAPH_ACCESS_TOKEN
+  if (accessToken?.trim()) {
+    return accessToken.trim()
   }
 
   const stored = await getStoredTokens()
@@ -131,7 +132,7 @@ export async function authStatus() {
     return { authenticated: false as const }
   }
 
-  const response = await fetch(`${env.UIGRAPH_MCP_SERVER_URL}/auth/me`, {
+  const response = await fetch(`${getEnv().UIGRAPH_MCP_SERVER_URL}/auth/me`, {
     headers: { Authorization: `Bearer ${token}` },
   })
 
@@ -159,8 +160,9 @@ export async function getExplicitDefaultOrg() {
     return stored
   }
 
-  if (env.UIGRAPH_ORG_ID?.trim()) {
-    return env.UIGRAPH_ORG_ID.trim()
+  const orgId = getEnv().UIGRAPH_ORG_ID
+  if (orgId?.trim()) {
+    return orgId.trim()
   }
 
   return null
