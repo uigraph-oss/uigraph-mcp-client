@@ -1,7 +1,8 @@
 # @uigraph/mcp
 
-Connect Cursor to UIGraph MCP with a local stdio proxy. The proxy only needs the
-MCP server URL — all login is handled by the MCP server.
+Connect Cursor to UIGraph MCP with a local stdio proxy. Configure the MCP server
+URL and a UIGraph service-account token. Remote MCP clients can use user OAuth
+directly with the server; this local proxy uses a service account.
 
 ---
 
@@ -38,11 +39,7 @@ npx @uigraph/mcp init cursor
 npx @uigraph/mcp auth login
 ```
 
-You'll be asked to choose:
-
-- **Service Account** — paste a service-account token (the `uig_…` token from UIGraph).
-- **User Account** — opens a browser; the MCP server redirects you to the UIGraph
-  frontend to sign in, then hands the token back automatically.
+Paste a service-account token (the `uig_…` token from UIGraph).
 
 Credentials are stored in your OS keychain.
 
@@ -83,7 +80,7 @@ Cursor (stdio)
    ↓
 @uigraph/mcp (this proxy)
    ↓
-HTTPS (Authorization: Bearer <token>)
+HTTPS (X-API-Key: <service-account token>)
    ↓
 UIGraph MCP Server
 ```
@@ -91,9 +88,7 @@ UIGraph MCP Server
 The proxy:
 
 - Reads JSON-RPC messages from stdin
-- For user login: opens the MCP server's `/auth/login`, which brokers the browser
-  sign-in via the UIGraph frontend and returns a token to a local callback
-- Attaches the stored (or `UIGRAPH_ACCESS_TOKEN`) token as a Bearer header
+- Attaches the stored (or `UIGRAPH_ACCESS_TOKEN`) service-account token as an `X-API-Key` header
 - Forwards requests to the MCP server and returns responses to stdout
 
 It does not implement tools or business logic.

@@ -25,7 +25,7 @@ export async function runCli(argv: string[]) {
 
   auth
     .command('login')
-    .description('Login as a service account or user account')
+    .description('Store a service account token')
     .action(async () => {
       getEnv()
       await login()
