@@ -43,7 +43,10 @@ export async function getStoredTokens() {
     }
 
     if (parsed.kind === 'service') {
-      return { accessToken: parsed.accessToken, kind: 'service_account' }
+      return {
+        accessToken: parsed.accessToken as string,
+        kind: 'service_account' as const,
+      }
     }
 
     return parsed as TokenBundle
